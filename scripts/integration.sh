@@ -5,13 +5,13 @@ set -o pipefail
 readonly PROGDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly BUILDPACKDIR="$(cd "${PROGDIR}/.." && pwd)"
 
-# shellcheck source=.util/tools.sh
+# shellcheck source=SCRIPTDIR/.util/tools.sh
 source "${PROGDIR}/.util/tools.sh"
 
-# shellcheck source=.util/print.sh
+# shellcheck source=SCRIPTDIR/.util/print.sh
 source "${PROGDIR}/.util/print.sh"
 
-# shellcheck source=.util/git.sh
+# shellcheck source=SCRIPTDIR/.util/git.sh
 source "${PROGDIR}/.util/git.sh"
 
 function main() {
@@ -41,6 +41,7 @@ function tools::install() {
 
 function images::pull() {
     local builder
+    builder=""
 
     if [[ -f "${BUILDPACKDIR}/integration.json" ]]; then
       builder="$(jq -r .builder "${BUILDPACKDIR}/integration.json")"
