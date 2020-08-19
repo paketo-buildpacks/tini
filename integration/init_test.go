@@ -15,15 +15,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-/* Later TODO: Add offline tests
-* Since the dependency is part of the src right now, the "online"
-* buildpack works fine in offline mode as well. When the buildpack.toml
-* starts pointing to a remote dependency, add offline tests.
- */
 var (
-	tiniBuildpack string
-	// offlineTiniBuildpack string
-	buildPlanBuildpack string
+	tiniBuildpack        string
+	offlineTiniBuildpack string
+	buildPlanBuildpack   string
 
 	buildpackInfo struct {
 		Buildpack struct {
@@ -63,11 +58,11 @@ func TestIntegration(t *testing.T) {
 		Execute(root)
 	Expect(err).NotTo(HaveOccurred())
 
-	// offlineTiniBuildpack, err = buildpackStore.Get.
-	// 	WithOfflineDependencies().
-	// 	WithVersion("1.2.3").
-	// 	Execute(root)
-	// Expect(err).NotTo(HaveOccurred())
+	offlineTiniBuildpack, err = buildpackStore.Get.
+		WithOfflineDependencies().
+		WithVersion("1.2.3").
+		Execute(root)
+	Expect(err).NotTo(HaveOccurred())
 
 	buildPlanBuildpack, err = buildpackStore.Get.
 		Execute(config.BuildPlan)
@@ -78,5 +73,6 @@ func TestIntegration(t *testing.T) {
 	suite := spec.New("Integration", spec.Report(report.Terminal{}), spec.Parallel())
 	suite("SimpleApp", testSimpleApp)
 	suite("LayerReuse", testLayerReuse)
+	suite("OfflineTest", testOffline)
 	suite.Run(t)
 }
