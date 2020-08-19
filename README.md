@@ -4,11 +4,6 @@ The Tini CNB provides the [Tini](https://github.com/krallin/tini) executable.
 The buildpack installs tini onto the `$PATH` which makes it available for
 subsequent buildpacks and/or the final container image.
 
-## Caveat
-
-As of now, the buildpack provides a hard-coded binary and the dependency does
-not get updated when there are new releases of Tini.
-
 ## Integration
 
 The Tini CNB provides `tini` as a dependency. Downstream
