@@ -2,7 +2,7 @@ api = "0.2"
 
 [buildpack]
   id = "paketo-buildpacks/tini"
-  name = "Tini Buildpack"
+  name = "Paketo Tini Buildpack"
   homepage = "https://github.com/paketo-buildpacks/tini"
 
 [metadata]
