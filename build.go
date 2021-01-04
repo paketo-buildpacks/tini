@@ -58,10 +58,6 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
-		tiniLayer.Launch = entry.Metadata["launch"] == true
-		tiniLayer.Build = entry.Metadata["build"] == true
-		tiniLayer.Cache = entry.Metadata["build"] == true
-
 		cachedSHA, ok := tiniLayer.Metadata[DependencyCacheKey].(string)
 		if ok && cachedSHA == dependency.SHA256 {
 			logger.Process("Reusing cached layer %s", tiniLayer.Path)
@@ -77,10 +73,14 @@ func Build(
 
 		logger.Process("Executing build process")
 
-		err = tiniLayer.Reset()
+		tiniLayer, err = tiniLayer.Reset()
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
+
+		tiniLayer.Launch = entry.Metadata["launch"] == true
+		tiniLayer.Build = entry.Metadata["build"] == true
+		tiniLayer.Cache = entry.Metadata["build"] == true
 
 		logger.Subprocess("Installing Tini %s", dependency.Version)
 
