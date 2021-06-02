@@ -1,9 +1,9 @@
 api = "0.2"
 
 [buildpack]
+  homepage = "https://github.com/paketo-buildpacks/tini"
   id = "paketo-buildpacks/tini"
   name = "Paketo Tini Buildpack"
-  homepage = "https://github.com/paketo-buildpacks/tini"
 
 [metadata]
   include-files = ["bin/build", "bin/detect", "bin/run", "buildpack.toml"]
@@ -15,7 +15,7 @@ api = "0.2"
     sha256 = "7e7831250ebbf15d551866d9ab94856251062c8286977ddcf3dbd327a78d7f5d"
     source = "https://github.com/krallin/tini/archive/v0.19.0.tar.gz"
     source_sha256 = "0fd35a7030052acd9f58948d1d900fe1e432ee37103c5561554408bdac6bbf0d"
-    stacks = ["io.buildpacks.stacks.bionic","org.cloudfoundry.stacks.cflinuxfs3"]
+    stacks = ["io.buildpacks.stacks.bionic", "org.cloudfoundry.stacks.cflinuxfs3"]
     uri = "https://buildpacks.cloudfoundry.org/dependencies/manual-binaries/tini/tini-0.19.0.tgz"
     version = "0.19.0"
 
