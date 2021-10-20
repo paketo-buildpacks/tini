@@ -11,7 +11,5 @@ func TestUnitTini(t *testing.T) {
 	suite := spec.New("tini", spec.Report(report.Terminal{}), spec.Parallel())
 	suite("Build", testBuild)
 	suite("Detect", testDetect)
-	suite("PlanRefinery", testPlanRefinery)
-	suite("PlanResolver", testPlanEntryResolver)
 	suite.Run(t)
 }
