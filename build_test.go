@@ -12,6 +12,7 @@ import (
 	"github.com/paketo-buildpacks/packit"
 	"github.com/paketo-buildpacks/packit/chronos"
 	"github.com/paketo-buildpacks/packit/postal"
+	"github.com/paketo-buildpacks/packit/scribe"
 	"github.com/paketo-buildpacks/tini"
 	"github.com/paketo-buildpacks/tini/fakes"
 	"github.com/sclevine/spec"
@@ -29,7 +30,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		timestamp         time.Time
 		entryResolver     *fakes.EntryResolver
 		dependencyManager *fakes.DependencyManager
-		planRefinery      *fakes.BuildPlanRefinery
 		buffer            *bytes.Buffer
 
 		build packit.BuildFunc
@@ -47,7 +47,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(err).NotTo(HaveOccurred())
 
 		buffer = bytes.NewBuffer(nil)
-		logEmitter := tini.NewLogEmitter(buffer)
 
 		timestamp = time.Now()
 		clock := chronos.NewClock(func() time.Time {
@@ -55,9 +54,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		})
 
 		entryResolver = &fakes.EntryResolver{}
-		entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
-			Name: "tini",
-		}
+		entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{Name: "tini"}
 
 		dependencyManager = &fakes.DependencyManager{}
 		dependencyManager.ResolveCall.Returns.Dependency = postal.Dependency{
@@ -68,18 +65,21 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			URI:     "tini-dependency-uri",
 			Version: "tini-dependency-version",
 		}
-
-		planRefinery = &fakes.BuildPlanRefinery{}
-		planRefinery.BillOfMaterialsCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{
-			Name: "tini",
-			Metadata: map[string]interface{}{
-				"name":   "tini-dependency-name",
-				"sha256": "tini-dependency-sha",
-				"stacks": []string{"some-stack"},
-				"uri":    "tini-dependency-uri",
+		dependencyManager.GenerateBillOfMaterialsCall.Returns.BOMEntrySlice = []packit.BOMEntry{
+			{
+				Name: "tini",
+				Metadata: packit.BOMMetadata{
+					Version: "tini-dependency-version",
+					Checksum: packit.BOMChecksum{
+						Algorithm: packit.SHA256,
+						Hash:      "tini-dependency-sha",
+					},
+					URI: "tini-dependency-uri",
+				},
 			},
 		}
-		build = tini.Build(entryResolver, dependencyManager, planRefinery, clock, logEmitter)
+
+		build = tini.Build(entryResolver, dependencyManager, clock, scribe.NewEmitter(buffer))
 	})
 
 	it.After(func() {
@@ -109,19 +109,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(result).To(Equal(packit.BuildResult{
-			Plan: packit.BuildpackPlan{
-				Entries: []packit.BuildpackPlanEntry{
-					{
-						Name: "tini",
-						Metadata: map[string]interface{}{
-							"name":   "tini-dependency-name",
-							"sha256": "tini-dependency-sha",
-							"stacks": []string{"some-stack"},
-							"uri":    "tini-dependency-uri",
-						},
-					},
-				},
-			},
 			Layers: []packit.Layer{
 				{
 					Name:             "tini",
@@ -143,10 +130,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		Expect(filepath.Join(layersDir, "tini")).To(BeADirectory())
 
-		Expect(entryResolver.ResolveCall.Receives.BuildpackPlanEntrySlice).To(Equal([]packit.BuildpackPlanEntry{
-			{
-				Name: "tini",
-			},
+		Expect(entryResolver.ResolveCall.Receives.Entries).To(Equal([]packit.BuildpackPlanEntry{
+			{Name: "tini"},
 		}))
 
 		Expect(dependencyManager.ResolveCall.Receives.Path).To(Equal(filepath.Join(cnbDir, "buildpack.toml")))
@@ -164,13 +149,15 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(dependencyManager.InstallCall.Receives.CnbPath).To(Equal(cnbDir))
 		Expect(dependencyManager.InstallCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "tini")))
 
-		Expect(planRefinery.BillOfMaterialsCall.Receives.Dependency).To(Equal(postal.Dependency{
-			ID:      "tini",
-			Name:    "tini-dependency-name",
-			SHA256:  "tini-dependency-sha",
-			Stacks:  []string{"some-stack"},
-			URI:     "tini-dependency-uri",
-			Version: "tini-dependency-version",
+		Expect(dependencyManager.GenerateBillOfMaterialsCall.Receives.Dependencies).To(Equal([]postal.Dependency{
+			{
+				ID:      "tini",
+				Name:    "tini-dependency-name",
+				SHA256:  "tini-dependency-sha",
+				Stacks:  []string{"some-stack"},
+				URI:     "tini-dependency-uri",
+				Version: "tini-dependency-version",
+			},
 		}))
 
 		Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
@@ -186,6 +173,8 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					"build":  true,
 				},
 			}
+			entryResolver.MergeLayerTypesCall.Returns.Launch = true
+			entryResolver.MergeLayerTypesCall.Returns.Build = true
 		})
 
 		it("marks the tini layer as build, cache and launch", func() {
@@ -213,19 +202,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(result).To(Equal(packit.BuildResult{
-				Plan: packit.BuildpackPlan{
-					Entries: []packit.BuildpackPlanEntry{
-						{
-							Name: "tini",
-							Metadata: map[string]interface{}{
-								"name":   "tini-dependency-name",
-								"sha256": "tini-dependency-sha",
-								"stacks": []string{"some-stack"},
-								"uri":    "tini-dependency-uri",
-							},
-						},
-					},
-				},
 				Layers: []packit.Layer{
 					{
 						Name:             "tini",
@@ -240,6 +216,36 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Metadata: map[string]interface{}{
 							tini.DependencyCacheKey: "tini-dependency-sha",
 							"built_at":              timestamp.Format(time.RFC3339Nano),
+						},
+					},
+				},
+				Build: packit.BuildMetadata{
+					BOM: []packit.BOMEntry{
+						{
+							Name: "tini",
+							Metadata: packit.BOMMetadata{
+								Version: "tini-dependency-version",
+								Checksum: packit.BOMChecksum{
+									Algorithm: packit.SHA256,
+									Hash:      "tini-dependency-sha",
+								},
+								URI: "tini-dependency-uri",
+							},
+						},
+					},
+				},
+				Launch: packit.LaunchMetadata{
+					BOM: []packit.BOMEntry{
+						{
+							Name: "tini",
+							Metadata: packit.BOMMetadata{
+								Version: "tini-dependency-version",
+								Checksum: packit.BOMChecksum{
+									Algorithm: packit.SHA256,
+									Hash:      "tini-dependency-sha",
+								},
+								URI: "tini-dependency-uri",
+							},
 						},
 					},
 				},
