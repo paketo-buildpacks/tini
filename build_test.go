@@ -6,12 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
-	"github.com/paketo-buildpacks/packit"
-	"github.com/paketo-buildpacks/packit/chronos"
-	"github.com/paketo-buildpacks/packit/postal"
-	"github.com/paketo-buildpacks/packit/scribe"
+	"github.com/paketo-buildpacks/packit/v2"
+	"github.com/paketo-buildpacks/packit/v2/chronos"
+
+	//nolint Ignore SA1019, informed usage of deprecated package
+	"github.com/paketo-buildpacks/packit/v2/paketosbom"
+	"github.com/paketo-buildpacks/packit/v2/postal"
+	"github.com/paketo-buildpacks/packit/v2/scribe"
 	"github.com/paketo-buildpacks/tini"
 	"github.com/paketo-buildpacks/tini/fakes"
 	"github.com/sclevine/spec"
@@ -26,7 +28,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		layersDir         string
 		workingDir        string
 		cnbDir            string
-		timestamp         time.Time
 		entryResolver     *fakes.EntryResolver
 		dependencyManager *fakes.DependencyManager
 		buffer            *bytes.Buffer
@@ -47,11 +48,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		buffer = bytes.NewBuffer(nil)
 
-		timestamp = time.Now()
-		clock := chronos.NewClock(func() time.Time {
-			return timestamp
-		})
-
 		entryResolver = &fakes.EntryResolver{}
 		entryResolver.ResolveCall.Returns.BuildpackPlanEntry = packit.BuildpackPlanEntry{Name: "tini"}
 
@@ -67,10 +63,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		dependencyManager.GenerateBillOfMaterialsCall.Returns.BOMEntrySlice = []packit.BOMEntry{
 			{
 				Name: "tini",
-				Metadata: packit.BOMMetadata{
+				Metadata: paketosbom.BOMMetadata{
 					Version: "tini-dependency-version",
-					Checksum: packit.BOMChecksum{
-						Algorithm: packit.SHA256,
+					Checksum: paketosbom.BOMChecksum{
+						Algorithm: paketosbom.SHA256,
 						Hash:      "tini-dependency-sha",
 					},
 					URI: "tini-dependency-uri",
@@ -78,7 +74,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			},
 		}
 
-		build = tini.Build(entryResolver, dependencyManager, clock, scribe.NewEmitter(buffer))
+		build = tini.Build(entryResolver, dependencyManager, chronos.DefaultClock, scribe.NewEmitter(buffer))
 	})
 
 	it.After(func() {
@@ -96,6 +92,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				Name:    "Some Buildpack",
 				Version: "some-version",
 			},
+			Platform: packit.Platform{Path: "platform"},
 			Plan: packit.BuildpackPlan{
 				Entries: []packit.BuildpackPlanEntry{
 					{
@@ -121,7 +118,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Cache:            false,
 					Metadata: map[string]interface{}{
 						tini.DependencyCacheKey: "tini-dependency-sha",
-						"built_at":              timestamp.Format(time.RFC3339Nano),
 					},
 				},
 			},
@@ -137,7 +133,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(dependencyManager.ResolveCall.Receives.Id).To(Equal("tini"))
 		Expect(dependencyManager.ResolveCall.Receives.Stack).To(Equal("some-stack"))
 
-		Expect(dependencyManager.InstallCall.Receives.Dependency).To(Equal(postal.Dependency{
+		Expect(dependencyManager.DeliverCall.Receives.Dependency).To(Equal(postal.Dependency{
 			ID:      "tini",
 			Name:    "tini-dependency-name",
 			SHA256:  "tini-dependency-sha",
@@ -145,8 +141,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			URI:     "tini-dependency-uri",
 			Version: "tini-dependency-version",
 		}))
-		Expect(dependencyManager.InstallCall.Receives.CnbPath).To(Equal(cnbDir))
-		Expect(dependencyManager.InstallCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "tini")))
+		Expect(dependencyManager.DeliverCall.Receives.CnbPath).To(Equal(cnbDir))
+		Expect(dependencyManager.DeliverCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "tini")))
+		Expect(dependencyManager.DeliverCall.Receives.PlatformPath).To(Equal("platform"))
 
 		Expect(dependencyManager.GenerateBillOfMaterialsCall.Receives.Dependencies).To(Equal([]postal.Dependency{
 			{
@@ -215,7 +212,6 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 						Cache:            true,
 						Metadata: map[string]interface{}{
 							tini.DependencyCacheKey: "tini-dependency-sha",
-							"built_at":              timestamp.Format(time.RFC3339Nano),
 						},
 					},
 				},
@@ -223,10 +219,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					BOM: []packit.BOMEntry{
 						{
 							Name: "tini",
-							Metadata: packit.BOMMetadata{
+							Metadata: paketosbom.BOMMetadata{
 								Version: "tini-dependency-version",
-								Checksum: packit.BOMChecksum{
-									Algorithm: packit.SHA256,
+								Checksum: paketosbom.BOMChecksum{
+									Algorithm: paketosbom.SHA256,
 									Hash:      "tini-dependency-sha",
 								},
 								URI: "tini-dependency-uri",
@@ -238,10 +234,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					BOM: []packit.BOMEntry{
 						{
 							Name: "tini",
-							Metadata: packit.BOMMetadata{
+							Metadata: paketosbom.BOMMetadata{
 								Version: "tini-dependency-version",
-								Checksum: packit.BOMChecksum{
-									Algorithm: packit.SHA256,
+								Checksum: paketosbom.BOMChecksum{
+									Algorithm: paketosbom.SHA256,
 									Hash:      "tini-dependency-sha",
 								},
 								URI: "tini-dependency-uri",
@@ -274,6 +270,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Name:    "Some Buildpack",
 					Version: "some-version",
 				},
+				Platform: packit.Platform{Path: "platform"},
 				Plan: packit.BuildpackPlan{
 					Entries: []packit.BuildpackPlanEntry{
 						{
@@ -306,10 +303,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					BOM: []packit.BOMEntry{
 						{
 							Name: "tini",
-							Metadata: packit.BOMMetadata{
+							Metadata: paketosbom.BOMMetadata{
 								Version: "tini-dependency-version",
-								Checksum: packit.BOMChecksum{
-									Algorithm: packit.SHA256,
+								Checksum: paketosbom.BOMChecksum{
+									Algorithm: paketosbom.SHA256,
 									Hash:      "tini-dependency-sha",
 								},
 								URI: "tini-dependency-uri",
@@ -319,7 +316,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 				},
 			}))
 
-			Expect(dependencyManager.InstallCall.CallCount).To(Equal(0))
+			Expect(dependencyManager.DeliverCall.CallCount).To(Equal(0))
 			Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
 			Expect(buffer.String()).To(ContainSubstring("Reusing cached layer"))
 		})
@@ -348,7 +345,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		context("when the dependency cannot be installed", func() {
 			it.Before(func() {
-				dependencyManager.InstallCall.Returns.Error = errors.New("failed to install dependency")
+				dependencyManager.DeliverCall.Returns.Error = errors.New("failed to install dependency")
 			})
 
 			it("returns an error", func() {
