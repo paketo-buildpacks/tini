@@ -43,7 +43,3 @@ To package this buildpack for consumption:
 ```
 $ ./scripts/package.sh
 ```
-
-## `buildpack.yml` Configuration
-
-The tini buildpack does not support configurations via `buildpack.yml`.
