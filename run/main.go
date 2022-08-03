@@ -19,7 +19,7 @@ func main() {
 			draft.NewPlanner(),
 			postal.NewService(cargo.NewTransport()),
 			chronos.DefaultClock,
-			scribe.NewEmitter(os.Stdout),
+			scribe.NewEmitter(os.Stdout).WithLevel(os.Getenv("BP_LOG_LEVEL")),
 		),
 	)
 }
