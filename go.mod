@@ -16,5 +16,5 @@ require (
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	golang.org/x/net v0.0.0-20220812174116-3211cb980234 // indirect
 	golang.org/x/sys v0.0.0-20220818161305-2296e01440c6 // indirect
-	google.golang.org/genproto v0.0.0-20220817144833-d7fd3f11b9b1 // indirect
+	google.golang.org/genproto v0.0.0-20220819174105-e9f053255caa // indirect
 )
