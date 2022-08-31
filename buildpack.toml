@@ -3,7 +3,7 @@ api = "0.7"
 [buildpack]
   homepage = "https://github.com/paketo-buildpacks/tini"
   id = "paketo-buildpacks/tini"
-  name = "Paketo Tini Buildpack"
+  name = "Paketo Buildpack for Tini"
 
 [metadata]
   include-files = ["bin/build", "bin/detect", "bin/run", "buildpack.toml"]
