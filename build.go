@@ -67,6 +67,7 @@ func Build(
 		}
 
 		cachedSHA, ok := layer.Metadata[DependencyCacheKey].(string)
+		//nolint:staticcheck
 		if ok && cachedSHA == dependency.SHA256 {
 			logger.Process("Reusing cached layer %s", layer.Path)
 			logger.Break()
@@ -102,6 +103,7 @@ func Build(
 		logger.Break()
 
 		layer.Metadata = map[string]interface{}{
+			//nolint:staticcheck
 			DependencyCacheKey: dependency.SHA256,
 		}
 
