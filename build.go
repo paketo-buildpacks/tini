@@ -1,6 +1,7 @@
 package tini
 
 import (
+	"os"
 	"path/filepath"
 	"time"
 
@@ -92,8 +93,13 @@ func Build(
 
 		logger.Subprocess("Installing Tini %s", dependency.Version)
 
+		err = os.MkdirAll(filepath.Join(layer.Path, "bin"), os.ModePerm)
+		if err != nil {
+			return packit.BuildResult{}, err
+		}
+
 		duration, err := clock.Measure(func() error {
-			return dependencies.Deliver(dependency, context.CNBPath, layer.Path, context.Platform.Path)
+			return dependencies.Deliver(dependency, context.CNBPath, filepath.Join(layer.Path, "bin"), context.Platform.Path)
 		})
 		if err != nil {
 			return packit.BuildResult{}, err

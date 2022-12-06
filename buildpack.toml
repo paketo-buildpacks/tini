@@ -13,13 +13,10 @@ api = "0.7"
     cpe = "cpe:2.3:a:tini_project:tini:0.19.0:*:*:*:*:*:*:*"
     id = "tini"
     licenses = ["MIT", "MIT-0"]
-    name = "Tini"
-    purl = "pkg:generic/tini@v0.19.0?checksum=1e83f58ef41e7eac8e1d645bf16f3829ee4f3556dd1dd188eb14a09658cc7679&download_url=https://github.com/krallin/tini/tarball/v0.19.0"
-    sha256 = "558690364d519f6d111312002eab5953683ec61f51e2bd336f5d2a0e9d1b5e18"
-    source = "https://github.com/krallin/tini/tarball/v0.19.0"
-    source_sha256 = "1e83f58ef41e7eac8e1d645bf16f3829ee4f3556dd1dd188eb14a09658cc7679"
-    stacks = ["io.buildpacks.stacks.bionic"]
-    uri = "https://deps.paketo.io/tini/tini_v0.19.0_linux_noarch_bionic_55869036.tgz"
+    name = "tini"
+    sha256 = "c5b0666b4cb676901f90dfcb37106783c5fe2077b04590973b885950611b30ee"
+    stacks = ["io.buildpacks.stacks.bionic", "io.buildpacks.stacks.jammy"]
+    uri = "https://github.com/krallin/tini/releases/download/v0.19.0/tini-static"
     version = "0.19.0"
 
   [[metadata.dependency-constraints]]
@@ -28,4 +25,4 @@ api = "0.7"
     patches = 1
 
 [[stacks]]
-  id = "io.buildpacks.stacks.bionic"
+  id = "*"
