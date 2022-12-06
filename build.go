@@ -1,12 +1,15 @@
 package tini
 
 import (
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/paketo-buildpacks/packit/v2"
+	"github.com/paketo-buildpacks/packit/v2/cargo"
 	"github.com/paketo-buildpacks/packit/v2/chronos"
 	"github.com/paketo-buildpacks/packit/v2/postal"
+	"github.com/paketo-buildpacks/packit/v2/sbom"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
 )
 
@@ -23,11 +26,17 @@ type DependencyManager interface {
 	GenerateBillOfMaterials(dependencies ...postal.Dependency) []packit.BOMEntry
 }
 
+//go:generate faux --interface SBOMGenerator --output fakes/sbom_generator.go
+type SBOMGenerator interface {
+	GenerateFromDependency(dependency postal.Dependency, dir string) (sbom.SBOM, error)
+}
+
 func Build(
 	entries EntryResolver,
 	dependencies DependencyManager,
 	clock chronos.Clock,
 	logger scribe.Emitter,
+	sbomGenerator SBOMGenerator,
 ) packit.BuildFunc {
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
@@ -66,9 +75,8 @@ func Build(
 			return packit.BuildResult{}, err
 		}
 
-		cachedSHA, ok := layer.Metadata[DependencyCacheKey].(string)
-		//nolint:staticcheck
-		if ok && cachedSHA == dependency.SHA256 {
+		cachedChecksum, ok := layer.Metadata["dependency-checksum"].(string)
+		if ok && cargo.Checksum(dependency.Checksum).MatchString(cachedChecksum) {
 			logger.Process("Reusing cached layer %s", layer.Path)
 			logger.Break()
 
@@ -90,10 +98,17 @@ func Build(
 
 		layer.Launch, layer.Build, layer.Cache = launch, build, build
 
-		logger.Subprocess("Installing Tini %s", dependency.Version)
+		logger.Subprocess("Installing %s %s", dependency.Name, dependency.Version)
+
+		err = os.MkdirAll(filepath.Join(layer.Path, "bin"), os.ModePerm)
+		if err != nil {
+			return packit.BuildResult{}, err
+		}
 
 		duration, err := clock.Measure(func() error {
-			return dependencies.Deliver(dependency, context.CNBPath, layer.Path, context.Platform.Path)
+			d := dependency
+			d.Name = "tini" // This is to get the correct name on the binary
+			return dependencies.Deliver(d, context.CNBPath, filepath.Join(layer.Path, "bin"), context.Platform.Path)
 		})
 		if err != nil {
 			return packit.BuildResult{}, err
@@ -102,9 +117,27 @@ func Build(
 		logger.Action("Completed in %s", duration.Round(time.Millisecond))
 		logger.Break()
 
+		logger.GeneratingSBOM(layer.Path)
+		var sbomContent sbom.SBOM
+		duration, err = clock.Measure(func() error {
+			sbomContent, err = sbomGenerator.GenerateFromDependency(dependency, layer.Path)
+			return err
+		})
+		if err != nil {
+			return packit.BuildResult{}, err
+		}
+
+		logger.Action("Completed in %s", duration.Round(time.Millisecond))
+		logger.Break()
+
+		logger.FormattingSBOM(context.BuildpackInfo.SBOMFormats...)
+		layer.SBOM, err = sbomContent.InFormats(context.BuildpackInfo.SBOMFormats...)
+		if err != nil {
+			return packit.BuildResult{}, err
+		}
+
 		layer.Metadata = map[string]interface{}{
-			//nolint:staticcheck
-			DependencyCacheKey: dependency.SHA256,
+			"dependency-checksum": dependency.Checksum,
 		}
 
 		return packit.BuildResult{

@@ -9,6 +9,7 @@ import (
 
 	"github.com/paketo-buildpacks/packit/v2"
 	"github.com/paketo-buildpacks/packit/v2/chronos"
+	"github.com/paketo-buildpacks/packit/v2/sbom"
 
 	//nolint Ignore SA1019, informed usage of deprecated package
 	"github.com/paketo-buildpacks/packit/v2/paketosbom"
@@ -30,6 +31,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		cnbDir            string
 		entryResolver     *fakes.EntryResolver
 		dependencyManager *fakes.DependencyManager
+		sbomGenerator     *fakes.SBOMGenerator
 		buffer            *bytes.Buffer
 
 		build packit.BuildFunc
@@ -53,12 +55,12 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		dependencyManager = &fakes.DependencyManager{}
 		dependencyManager.ResolveCall.Returns.Dependency = postal.Dependency{
-			ID:      "tini",
-			Name:    "tini-dependency-name",
-			SHA256:  "tini-dependency-sha",
-			Stacks:  []string{"some-stack"},
-			URI:     "tini-dependency-uri",
-			Version: "tini-dependency-version",
+			ID:       "tini",
+			Name:     "tini-dependency-name",
+			Checksum: "sha256:tini-dependency-sha",
+			Stacks:   []string{"some-stack"},
+			URI:      "tini-dependency-uri",
+			Version:  "tini-dependency-version",
 		}
 		dependencyManager.GenerateBillOfMaterialsCall.Returns.BOMEntrySlice = []packit.BOMEntry{
 			{
@@ -74,7 +76,10 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			},
 		}
 
-		build = tini.Build(entryResolver, dependencyManager, chronos.DefaultClock, scribe.NewEmitter(buffer))
+		sbomGenerator = &fakes.SBOMGenerator{}
+		sbomGenerator.GenerateFromDependencyCall.Returns.SBOM = sbom.SBOM{}
+
+		build = tini.Build(entryResolver, dependencyManager, chronos.DefaultClock, scribe.NewEmitter(buffer), sbomGenerator)
 	})
 
 	it.After(func() {
@@ -89,8 +94,9 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			CNBPath:    cnbDir,
 			Stack:      "some-stack",
 			BuildpackInfo: packit.BuildpackInfo{
-				Name:    "Some Buildpack",
-				Version: "some-version",
+				Name:        "Some Buildpack",
+				Version:     "some-version",
+				SBOMFormats: []string{sbom.CycloneDXFormat, sbom.SPDXFormat},
 			},
 			Platform: packit.Platform{Path: "platform"},
 			Plan: packit.BuildpackPlan{
@@ -104,22 +110,23 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		Expect(result).To(Equal(packit.BuildResult{
-			Layers: []packit.Layer{
-				{
-					Name:             "tini",
-					Path:             filepath.Join(layersDir, "tini"),
-					SharedEnv:        packit.Environment{},
-					BuildEnv:         packit.Environment{},
-					LaunchEnv:        packit.Environment{},
-					ProcessLaunchEnv: map[string]packit.Environment{},
-					Build:            false,
-					Launch:           false,
-					Cache:            false,
-					Metadata: map[string]interface{}{
-						tini.DependencyCacheKey: "tini-dependency-sha",
-					},
-				},
+		Expect(result.Layers).To(HaveLen(1))
+		layer := result.Layers[0]
+
+		Expect(layer.Name).To(Equal("tini"))
+		Expect(layer.Path).To(Equal(filepath.Join(layersDir, "tini")))
+		Expect(layer.Metadata).To(Equal(map[string]interface{}{
+			"dependency-checksum": "sha256:tini-dependency-sha",
+		}))
+
+		Expect(layer.SBOM.Formats()).To(Equal([]packit.SBOMFormat{
+			{
+				Extension: sbom.Format(sbom.CycloneDXFormat).Extension(),
+				Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.CycloneDXFormat),
+			},
+			{
+				Extension: sbom.Format(sbom.SPDXFormat).Extension(),
+				Content:   sbom.NewFormattedReader(sbom.SBOM{}, sbom.SPDXFormat),
 			},
 		}))
 
@@ -134,27 +141,37 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(dependencyManager.ResolveCall.Receives.Stack).To(Equal("some-stack"))
 
 		Expect(dependencyManager.DeliverCall.Receives.Dependency).To(Equal(postal.Dependency{
-			ID:      "tini",
-			Name:    "tini-dependency-name",
-			SHA256:  "tini-dependency-sha",
-			Stacks:  []string{"some-stack"},
-			URI:     "tini-dependency-uri",
-			Version: "tini-dependency-version",
+			ID:       "tini",
+			Name:     "tini",
+			Checksum: "sha256:tini-dependency-sha",
+			Stacks:   []string{"some-stack"},
+			URI:      "tini-dependency-uri",
+			Version:  "tini-dependency-version",
 		}))
 		Expect(dependencyManager.DeliverCall.Receives.CnbPath).To(Equal(cnbDir))
-		Expect(dependencyManager.DeliverCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "tini")))
+		Expect(dependencyManager.DeliverCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "tini", "bin")))
 		Expect(dependencyManager.DeliverCall.Receives.PlatformPath).To(Equal("platform"))
 
 		Expect(dependencyManager.GenerateBillOfMaterialsCall.Receives.Dependencies).To(Equal([]postal.Dependency{
 			{
-				ID:      "tini",
-				Name:    "tini-dependency-name",
-				SHA256:  "tini-dependency-sha",
-				Stacks:  []string{"some-stack"},
-				URI:     "tini-dependency-uri",
-				Version: "tini-dependency-version",
+				ID:       "tini",
+				Name:     "tini-dependency-name",
+				Checksum: "sha256:tini-dependency-sha",
+				Stacks:   []string{"some-stack"},
+				URI:      "tini-dependency-uri",
+				Version:  "tini-dependency-version",
 			},
 		}))
+
+		Expect(sbomGenerator.GenerateFromDependencyCall.Receives.Dependency).To(Equal(postal.Dependency{
+			ID:       "tini",
+			Name:     "tini-dependency-name",
+			Checksum: "sha256:tini-dependency-sha",
+			Stacks:   []string{"some-stack"},
+			URI:      "tini-dependency-uri",
+			Version:  "tini-dependency-version",
+		}))
+		Expect(sbomGenerator.GenerateFromDependencyCall.Receives.Dir).To(Equal(filepath.Join(layersDir, "tini")))
 
 		Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
 		Expect(buffer.String()).To(ContainSubstring("Executing build process"))
@@ -198,53 +215,41 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(result).To(Equal(packit.BuildResult{
-				Layers: []packit.Layer{
-					{
-						Name:             "tini",
-						Path:             filepath.Join(layersDir, "tini"),
-						SharedEnv:        packit.Environment{},
-						BuildEnv:         packit.Environment{},
-						LaunchEnv:        packit.Environment{},
-						ProcessLaunchEnv: map[string]packit.Environment{},
-						Build:            true,
-						Launch:           true,
-						Cache:            true,
-						Metadata: map[string]interface{}{
-							tini.DependencyCacheKey: "tini-dependency-sha",
-						},
-					},
+			Expect(result.Layers).To(HaveLen(1))
+			layer := result.Layers[0]
+
+			Expect(layer.Name).To(Equal("tini"))
+			Expect(layer.Path).To(Equal(filepath.Join(layersDir, "tini")))
+			Expect(layer.Metadata).To(Equal(map[string]interface{}{
+				"dependency-checksum": "sha256:tini-dependency-sha",
+			}))
+
+			Expect(layer.Build).To(BeTrue())
+			Expect(layer.Cache).To(BeTrue())
+			Expect(layer.Launch).To(BeTrue())
+
+			Expect(result.Build.BOM).To(HaveLen(1))
+			buildBOMEntry := result.Build.BOM[0]
+			Expect(buildBOMEntry.Name).To(Equal("tini"))
+			Expect(buildBOMEntry.Metadata).To(Equal(paketosbom.BOMMetadata{
+				Version: "tini-dependency-version",
+				Checksum: paketosbom.BOMChecksum{
+					Algorithm: paketosbom.SHA256,
+					Hash:      "tini-dependency-sha",
 				},
-				Build: packit.BuildMetadata{
-					BOM: []packit.BOMEntry{
-						{
-							Name: "tini",
-							Metadata: paketosbom.BOMMetadata{
-								Version: "tini-dependency-version",
-								Checksum: paketosbom.BOMChecksum{
-									Algorithm: paketosbom.SHA256,
-									Hash:      "tini-dependency-sha",
-								},
-								URI: "tini-dependency-uri",
-							},
-						},
-					},
+				URI: "tini-dependency-uri",
+			}))
+
+			Expect(result.Launch.BOM).To(HaveLen(1))
+			launchBOMEntry := result.Launch.BOM[0]
+			Expect(launchBOMEntry.Name).To(Equal("tini"))
+			Expect(launchBOMEntry.Metadata).To(Equal(paketosbom.BOMMetadata{
+				Version: "tini-dependency-version",
+				Checksum: paketosbom.BOMChecksum{
+					Algorithm: paketosbom.SHA256,
+					Hash:      "tini-dependency-sha",
 				},
-				Launch: packit.LaunchMetadata{
-					BOM: []packit.BOMEntry{
-						{
-							Name: "tini",
-							Metadata: paketosbom.BOMMetadata{
-								Version: "tini-dependency-version",
-								Checksum: paketosbom.BOMChecksum{
-									Algorithm: paketosbom.SHA256,
-									Hash:      "tini-dependency-sha",
-								},
-								URI: "tini-dependency-uri",
-							},
-						},
-					},
-				},
+				URI: "tini-dependency-uri",
 			}))
 		})
 	})
@@ -253,7 +258,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		it.Before(func() {
 			err := os.WriteFile(filepath.Join(layersDir, "tini.toml"), []byte(`
 [metadata]
-	dependency-sha = "tini-dependency-sha"
+	dependency-checksum = "sha256:tini-dependency-sha"
 `), 0600)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -282,38 +287,13 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(result).To(Equal(packit.BuildResult{
-				Layers: []packit.Layer{
-					{
-						Name:             "tini",
-						Path:             filepath.Join(layersDir, "tini"),
-						SharedEnv:        packit.Environment{},
-						BuildEnv:         packit.Environment{},
-						LaunchEnv:        packit.Environment{},
-						ProcessLaunchEnv: map[string]packit.Environment{},
-						Build:            true,
-						Launch:           false,
-						Cache:            true,
-						Metadata: map[string]interface{}{
-							tini.DependencyCacheKey: "tini-dependency-sha",
-						},
-					},
-				},
-				Build: packit.BuildMetadata{
-					BOM: []packit.BOMEntry{
-						{
-							Name: "tini",
-							Metadata: paketosbom.BOMMetadata{
-								Version: "tini-dependency-version",
-								Checksum: paketosbom.BOMChecksum{
-									Algorithm: paketosbom.SHA256,
-									Hash:      "tini-dependency-sha",
-								},
-								URI: "tini-dependency-uri",
-							},
-						},
-					},
-				},
+			Expect(result.Layers).To(HaveLen(1))
+			layer := result.Layers[0]
+
+			Expect(layer.Name).To(Equal("tini"))
+			Expect(layer.Path).To(Equal(filepath.Join(layersDir, "tini")))
+			Expect(layer.Metadata).To(Equal(map[string]interface{}{
+				"dependency-checksum": "sha256:tini-dependency-sha",
 			}))
 
 			Expect(dependencyManager.DeliverCall.CallCount).To(Equal(0))
@@ -340,6 +320,52 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Stack:  "some-stack",
 				})
 				Expect(err).To(MatchError("failed to resolve dependency"))
+			})
+		})
+
+		context("when the layer cannot be retrieved", func() {
+			it.Before(func() {
+				err := os.WriteFile(filepath.Join(layersDir, "tini.toml"), nil, 0000)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			it("returns an error", func() {
+				_, err := build(packit.BuildContext{
+					CNBPath: cnbDir,
+					Plan: packit.BuildpackPlan{
+						Entries: []packit.BuildpackPlanEntry{
+							{Name: "tini"},
+						},
+					},
+					Layers: packit.Layers{Path: layersDir},
+					Stack:  "some-stack",
+				})
+				Expect(err).To(MatchError(ContainSubstring("failed to parse layer content metadata")))
+			})
+		})
+
+		context("when the layer cannot be reset", func() {
+			it.Before(func() {
+				Expect(os.MkdirAll(filepath.Join(layersDir, "tini", "something"), os.ModePerm)).To(Succeed())
+				Expect(os.Chmod(filepath.Join(layersDir, "tini"), 0500)).To(Succeed())
+			})
+
+			it.After(func() {
+				Expect(os.Chmod(filepath.Join(layersDir, "tini"), os.ModePerm)).To(Succeed())
+			})
+
+			it("returns an error", func() {
+				_, err := build(packit.BuildContext{
+					CNBPath: cnbDir,
+					Plan: packit.BuildpackPlan{
+						Entries: []packit.BuildpackPlanEntry{
+							{Name: "tini"},
+						},
+					},
+					Layers: packit.Layers{Path: layersDir},
+					Stack:  "some-stack",
+				})
+				Expect(err).To(MatchError(ContainSubstring("could not remove file")))
 			})
 		})
 
@@ -383,6 +409,42 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 					Layers: packit.Layers{Path: layersDir},
 				})
 				Expect(err).To(MatchError(ContainSubstring("permission denied")))
+			})
+		})
+		context("when generating the SBOM returns an error", func() {
+			it.Before(func() {
+				sbomGenerator.GenerateFromDependencyCall.Returns.Error = errors.New("failed to generate SBOM")
+			})
+
+			it("returns an error", func() {
+				_, err := build(packit.BuildContext{
+					CNBPath: cnbDir,
+					Plan: packit.BuildpackPlan{
+						Entries: []packit.BuildpackPlanEntry{
+							{Name: "tini"},
+						},
+					},
+					Layers: packit.Layers{Path: layersDir},
+					Stack:  "some-stack",
+				})
+				Expect(err).To(MatchError(ContainSubstring("failed to generate SBOM")))
+			})
+		})
+
+		context("when formatting the SBOM returns an error", func() {
+			it("returns an error", func() {
+				_, err := build(packit.BuildContext{
+					BuildpackInfo: packit.BuildpackInfo{SBOMFormats: []string{"random-format"}},
+					CNBPath:       cnbDir,
+					Plan: packit.BuildpackPlan{
+						Entries: []packit.BuildpackPlanEntry{
+							{Name: "tini"},
+						},
+					},
+					Layers: packit.Layers{Path: layersDir},
+					Stack:  "some-stack",
+				})
+				Expect(err).To(MatchError("unsupported SBOM format: 'random-format'"))
 			})
 		})
 	})
