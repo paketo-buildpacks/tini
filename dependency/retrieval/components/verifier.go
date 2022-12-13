@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	//nolint Ignore SA1019, informed usage of deprecated package
 	"golang.org/x/crypto/openpgp"
 )
 
