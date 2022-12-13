@@ -11,7 +11,10 @@ import (
 
 	"github.com/paketo-buildpacks/tini/dependency/retrieval/components"
 	"github.com/sclevine/spec"
+
+	//nolint Ignore SA1019, informed usage of deprecated package
 	"golang.org/x/crypto/openpgp"
+	//nolint Ignore SA1019, informed usage of deprecated package
 	"golang.org/x/crypto/openpgp/armor"
 
 	. "github.com/onsi/gomega"
