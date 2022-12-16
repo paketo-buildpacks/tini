@@ -7,20 +7,8 @@ on:
     - cron: '0 */12 * * *'
 
 jobs:
-  select-go-version:
-    name: Select Go Version
-    runs-on: ubuntu-latest
-    outputs:
-      go-version: ${{ steps.select-go-version.outputs.go-version }}
-    steps:
-      - name: Select Go Version
-        id: select-go-version
-        run: echo "::set-output name=go-version::>=1.18.0"
-
   retrieve:
     name: Retrieve New Versions and Generate Metadata
-    needs:
-      - select-go-version
     runs-on: ubuntu-latest
     outputs:
       metadata-filepath: ${{ steps.retrieve.outputs.metadata-filepath }}
@@ -33,12 +21,12 @@ jobs:
       compilation-length: ${{ steps.retrieve.outputs.compilation-length }}
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Setup Go '${{ needs.select-go-version.outputs.go-version }}'
+      - name: Setup Go
         uses: actions/setup-go@v3
         with:
-          go-version: ${{ needs.select-go-version.outputs.go-version }}
+          go-version: 1.18.x
 
       - name: Run Retrieve
         id: retrieve
@@ -58,20 +46,14 @@ jobs:
           compilation=$(echo $content | jq -r 'map(select(.checksum == null and .uri == null))'?)
           complength=$(echo $compilation | jq -r '. | length')
 
-          content="${content//'%'/'%25'}"
-          content="${content//$'\n'/'%0A'}"
-          content="${content//$'\r'/'%0D'}"
+          delimiter="$(uuidgen)"
+          echo "metadata-filepath=${OUTPUT}" >> "$GITHUB_OUTPUT"
+          printf "metadata-json<<%s\n%s\n%s\n" "${delimiter}" "${content}" "${delimiter}" >> "$GITHUB_OUTPUT" # see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "length=$length" >> "$GITHUB_OUTPUT"
+          printf "compilation-json<<%s\n%s\n%s\n" "${delimiter}" "${compilation}" "${delimiter}" >> "$GITHUB_OUTPUT" # see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+          echo "compilation-length=$complength" >> "$GITHUB_OUTPUT"
 
-          compilation="${compilation//'%'/'%25'}"
-          compilation="${compilation//$'\n'/'%0A'}"
-          compilation="${compilation//$'\r'/'%0D'}"
-
-          echo "::set-output name=metadata-filepath::${OUTPUT}"
-          echo "::set-output name=metadata-json::$content"
-          echo "::set-output name=id::$id"
-          echo "::set-output name=length::$length"
-          echo "::set-output name=compilation-json::$compilation"
-          echo "::set-output name=compilation-length::$complength"
 
       - name: Upload `${{ steps.retrieve.outputs.metadata-filepath }}`
         uses: actions/upload-artifact@v3
@@ -90,14 +72,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Has Compilation Action?
         id: compile-check
         run: |
           if test -d "dependency/actions/compile"; then
             echo "Compilation action provided"
-            echo "::set-output name=should-compile::true"
+            echo "should-compile=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Has Testing Action?
@@ -105,7 +87,7 @@ jobs:
         run: |
           if test -d "dependency/test"; then
             echo "Testing file provided"
-            echo "::set-output name=should-test::true"
+            echo "should-test=true" >> "$GITHUB_OUTPUT"
           fi
 
   test:
@@ -125,12 +107,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Make Temporary Artifact Directory
         id: make-outputdir
         run: |
-          echo "::set-output name=outputdir::$(mktemp -d)"
+          echo "outputdir=$(mktemp -d)" >> "$GITHUB_OUTPUT"
 
       # Download the tarball for testing if:
       #   (1) dependency testing code is present in the buildpack directory
@@ -167,12 +149,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Make Temporary Artifact Directory
         id: make-outputdir
         run: |
-          echo "::set-output name=outputdir::$(mktemp -d)"
+          echo "outputdir=$(mktemp -d)" >> "$GITHUB_OUTPUT"
 
       # Compile if all of the following conditions are met:
       #   (1) compilation Github Action presetn in the buildpack directory
@@ -232,8 +214,8 @@ jobs:
       - name: Get artifact file name
         id: get-file-names
         run: |
-          echo "::set-output name=artifact-file::$(basename ./*.tgz)"
-          echo "::set-output name=checksum-file::$(basename ./*.tgz.checksum)"
+          echo "artifact-file=$(basename ./*.tgz)" >> "$GITHUB_OUTPUT"
+          echo "checksum-file=$(basename ./*.tgz.checksum)" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -252,7 +234,7 @@ jobs:
 
       - name: Get Checksum
         id: get-checksum
-        run: echo "::set-output name=checksum::$(cat ${{ steps.get-file-names.outputs.checksum-file }})"
+        run: echo "checksum=$(cat ${{ steps.get-file-names.outputs.checksum-file }})" >> "$GITHUB_OUTPUT"
 
       - name: Download metadata.json
         uses: actions/download-artifact@v3
@@ -291,7 +273,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Checkout Branch
         uses: paketo-buildpacks/github-config/actions/pull-request/checkout-branch@main
@@ -301,7 +283,7 @@ jobs:
       - name: Make Temporary Artifact Directory
         id: make-outputdir
         run: |
-          echo "::set-output name=outputdir::$(mktemp -d)"
+          echo "outputdir=$(mktemp -d)" >> "$GITHUB_OUTPUT"
 
       - name: Download metadata.json
         uses: actions/download-artifact@v3
@@ -326,6 +308,8 @@ jobs:
         with:
           message: "Updating buildpack.toml with new versions ${{ steps.update.outputs.new-versions }}"
           pathspec: "."
+          keyid: ${{ secrets.PAKETO_BOT_GPG_SIGNING_KEY_ID }}
+          key: ${{ secrets.PAKETO_BOT_GPG_SIGNING_KEY }}
 
       - name: Push Branch 'automation/dependencies/update-from-metadata'
         if: ${{ steps.commit.outputs.commit_sha != '' }}
