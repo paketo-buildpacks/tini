@@ -21,6 +21,6 @@ require (
 	github.com/sclevine/spec v1.4.0
 	github.com/testcontainers/testcontainers-go v0.15.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/crypto v0.4.0
+	golang.org/x/crypto v0.5.0
 	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c // indirect
 )
