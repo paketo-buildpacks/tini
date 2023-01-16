@@ -7,7 +7,8 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
-	github.com/anchore/syft v0.65.0 // indirect
+	github.com/ProtonMail/go-crypto v0.0.0-20230113180642-068501e20d67 // indirect
+	github.com/anchore/syft v0.66.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/cloudflare/circl v1.3.1 // indirect
 	github.com/containerd/containerd v1.6.15 // indirect
@@ -15,6 +16,7 @@ require (
 	github.com/dgryski/go-minhash v0.0.0-20190315135803-ad340ca03076 // indirect
 	github.com/docker/cli v20.10.22+incompatible // indirect
 	github.com/docker/docker v20.10.22+incompatible // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ekzhu/minhash-lsh v0.0.0-20190924033628-faac2c6342f8 // indirect
 	github.com/facebookincubator/nvdtools v0.1.5 // indirect
 	github.com/go-enry/go-license-detector/v4 v4.3.0
@@ -38,8 +40,10 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20220927061507-ef77025ab5aa // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/sclevine/spec v1.4.0
+	github.com/sergi/go-diff v1.3.1 // indirect
 	github.com/shogo82148/go-shuffle v1.0.1 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
+	github.com/spdx/tools-golang v0.4.0 // indirect
 	github.com/spf13/afero v1.9.3 // indirect
 	github.com/sylabs/sif/v2 v2.9.0 // indirect
 	github.com/testcontainers/testcontainers-go v0.17.0 // indirect
@@ -48,10 +52,11 @@ require (
 	github.com/vifraa/gopom v0.2.1 // indirect
 	github.com/wagoodman/go-progress v0.0.0-20220614130704-4b1c25a33c7c // indirect
 	golang.org/x/crypto v0.5.0
-	golang.org/x/exp v0.0.0-20230108222341-4b8118a2686a // indirect
+	golang.org/x/exp v0.0.0-20230113213754-f9f960f08ad4 // indirect
 	golang.org/x/tools v0.5.0 // indirect
 	gonum.org/v1/gonum v0.12.0 // indirect
-	google.golang.org/genproto v0.0.0-20230106154932-a12b697841d9 // indirect
+	google.golang.org/genproto v0.0.0-20230113154510-dbe35b8444a5 // indirect
+	google.golang.org/grpc v1.52.0 // indirect
 	gopkg.in/neurosnap/sentences.v1 v1.0.7 // indirect
 	gotest.tools/v3 v3.4.0 // indirect
 	modernc.org/memory v1.5.0 // indirect
