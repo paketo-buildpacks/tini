@@ -11,7 +11,7 @@ require (
 	github.com/docker/docker v20.10.21+incompatible // indirect
 	github.com/go-enry/go-license-detector/v4 v4.3.0
 	github.com/moby/term v0.0.0-20221105221325-4eb28fa6025c // indirect
-	github.com/onsi/gomega v1.25.0
+	github.com/onsi/gomega v1.26.0
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/opencontainers/runc v1.1.4 // indirect
 	github.com/package-url/packageurl-go v0.1.0
