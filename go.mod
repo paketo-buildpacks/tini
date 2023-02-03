@@ -15,7 +15,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/opencontainers/runc v1.1.4 // indirect
 	github.com/package-url/packageurl-go v0.1.0
-	github.com/paketo-buildpacks/occam v0.14.0
+	github.com/paketo-buildpacks/occam v0.15.0
 	github.com/paketo-buildpacks/packit/v2 v2.8.0
 	github.com/sclevine/spec v1.4.0
 	go.opencensus.io v0.24.0 // indirect
