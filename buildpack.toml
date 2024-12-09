@@ -21,7 +21,7 @@ api = "0.7"
     purl = "pkg:generic/tini@0.19.0?checksum=1e83f58ef41e7eac8e1d645bf16f3829ee4f3556dd1dd188eb14a09658cc7679&download_url=https://api.github.com/repos/krallin/tini/tarball/v0.19.0"
     source = "https://api.github.com/repos/krallin/tini/tarball/v0.19.0"
     source-checksum = "sha256:1e83f58ef41e7eac8e1d645bf16f3829ee4f3556dd1dd188eb14a09658cc7679"
-    stacks = ["io.buildpacks.stacks.jammy", "io.buildpacks.stacks.bionic"]
+    stacks = ["*"]
     uri = "https://github.com/krallin/tini/releases/download/v0.19.0/tini-static"
     version = "0.19.0"
 
