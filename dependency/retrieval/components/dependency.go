@@ -19,15 +19,15 @@ func ConvertReleaseToDependency(release Release, platform cargo.ConfigTarget) ([
 			source = f
 		}
 
-		if f.Name == "tini-static" {
+		if f.Name == fmt.Sprintf("tini-static-%s", platform.Arch) {
 			binary = f
 		}
 
-		if f.Name == "tini-static.sha256sum" {
+		if f.Name == fmt.Sprintf("tini-static-%s.sha256sum", platform.Arch) {
 			binarySHA256 = f
 		}
 
-		if f.Name == "tini-static.asc" {
+		if f.Name == fmt.Sprintf("tini-static-%s.asc", platform.Arch) {
 			binaryASC = f
 		}
 	}

@@ -9,8 +9,8 @@ api = "0.7"
   sbom-formats = ["application/vnd.cyclonedx+json", "application/spdx+json", "application/vnd.syft+json"]
 
 [metadata]
-  include-files = ["bin/build", "bin/detect", "bin/run", "buildpack.toml"]
-  pre-package = "./scripts/build.sh"
+  include-files = ["buildpack.toml", "linux/amd64/bin/build", "linux/amd64/bin/detect", "linux/amd64/bin/run", "linux/arm64/bin/build", "linux/arm64/bin/detect", "linux/arm64/bin/run"]
+  pre-package = "./scripts/build.sh --target linux/amd64 --target linux/arm64"
 
   [[metadata.dependencies]]
     checksum = "sha256:c5b0666b4cb676901f90dfcb37106783c5fe2077b04590973b885950611b30ee"
@@ -32,3 +32,11 @@ api = "0.7"
 
 [[stacks]]
   id = "*"
+
+[[targets]]
+  arch = "amd64"
+  os = "linux"
+
+[[targets]]
+  arch = "arm64"
+  os = "linux"
