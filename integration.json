@@ -1,6 +1,7 @@
 {
   "builders": [
-    "paketobuildpacks/builder-jammy-buildpackless-base"
+    "paketobuildpacks/builder-jammy-buildpackless-base",
+    "paketobuildpacks/ubuntu-noble-builder-buildpackless"
   ],
   "build-plan": "github.com/paketo-community/build-plan"
 }
