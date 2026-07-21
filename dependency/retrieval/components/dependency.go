@@ -12,7 +12,12 @@ import (
 	"github.com/paketo-buildpacks/packit/v2/cargo"
 )
 
-func ConvertReleaseToDependency(release Release, platform cargo.ConfigTarget) ([]versionology.Dependency, error) {
+//go:generate faux --interface SignatureVerifier --output fakes/signature_verifier.go
+type SignatureVerifier interface {
+	Verify(signatureURL, targetURL string) error
+}
+
+func ConvertReleaseToDependency(release Release, platform cargo.ConfigTarget, signatureVerifier SignatureVerifier) ([]versionology.Dependency, error) {
 	var source, binary, binarySHA256, binaryASC ReleaseFile
 	for _, f := range release.Files {
 		if f.Name == "source" {
@@ -91,7 +96,6 @@ func ConvertReleaseToDependency(release Release, platform cargo.ConfigTarget) ([
 		return nil, fmt.Errorf("the given checksum of the artifact does not match with downloaded artifact")
 	}
 
-	signatureVerifier := NewVerifier()
 	err = signatureVerifier.Verify(binaryASC.URL, binary.URL)
 	if err != nil {
 		return nil, err
@@ -135,7 +139,7 @@ func GenerateMetadataWithPlatform(versionFetcher versionology.VersionFetcher, pl
 			return ConvertReleaseToDependency(release, cargo.ConfigTarget{
 				OS:   platform.OS,
 				Arch: platform.Arch,
-			})
+			}, NewVerifier())
 		}
 	}
 
