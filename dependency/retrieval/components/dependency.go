@@ -109,6 +109,7 @@ func ConvertReleaseToDependency(release Release, platform cargo.ConfigTarget, si
 		Version:        release.Version,
 		Source:         source.URL,
 		SourceChecksum: fmt.Sprintf("sha256:%s", sourceChecksum),
+		Stacks:         []string{"*"},
 		CPE:            fmt.Sprintf(`cpe:2.3:a:tini_project:tini:%s:*:*:*:*:*:*:*`, release.Version),
 		OS:             platform.OS,
 		PURL:           purl,

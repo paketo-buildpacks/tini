@@ -156,6 +156,7 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 						Source:          fmt.Sprintf("%s/source", server.URL),
 						SourceChecksum:  "sha256:ad1b820bde8c32707f8bb8ce636750b1c1b7c83a82e43481910bef2f4f77dcb5",
 						SourceSHA256:    "",
+						Stacks:          []string{"*"},
 						OS:              "linux",
 						StripComponents: 0,
 						URI:             fmt.Sprintf("%s/tini-static-amd64", server.URL),
