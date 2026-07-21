@@ -1,27 +1,29 @@
 package main
 
 import (
-	"flag"
 	"log"
-	"os"
 
-	"github.com/paketo-buildpacks/packit/v2/cargo"
+	"github.com/Masterminds/semver/v3"
+	"github.com/paketo-buildpacks/libdependency/versionology"
+
+	"github.com/paketo-buildpacks/libdependency/retrieve"
+
 	"github.com/paketo-buildpacks/tini/dependency/retrieval/components"
 )
 
-var targetMap = map[string][]string{
-	"": []string{"io.buildpacks.stacks.jammy", "io.buildpacks.stacks.bionic"},
+type TiniMetadata struct {
+	SemverVersion *semver.Version
+}
+
+func (tiniMetadata TiniMetadata) Version() *semver.Version {
+	return tiniMetadata.SemverVersion
 }
 
 func main() {
-	var buildpackTOMLPath, outputPath string
-	set := flag.NewFlagSet("", flag.ContinueOnError)
-	set.StringVar(&buildpackTOMLPath, "buildpack-toml-path", "", "path to the buildpack.toml file")
-	set.StringVar(&outputPath, "output", "", "path to the output file")
-	err := set.Parse(os.Args[1:])
-	if err != nil {
-		log.Fatal(err)
-	}
+	retrieve.NewMetadataWithPlatforms("tini", getAllVersions, components.GenerateMetadataWithPlatform)
+}
+
+func getAllVersions() (versionology.VersionFetcherArray, error) {
 
 	fetcher := components.NewFetcher()
 	releases, err := fetcher.Get()
@@ -29,33 +31,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var versions []string
+	var versions []versionology.VersionFetcher
 	for _, release := range releases {
-		versions = append(versions, release.SemVer.String())
+		semverVersion, _ := semver.NewVersion(release.Version)
+
+		versions = append(versions, TiniMetadata{
+			semverVersion,
+		})
 	}
 
-	newVersions, err := components.FindNewVersions(buildpackTOMLPath, versions)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	verifier := components.NewVerifier()
-
-	var dependencies []cargo.ConfigMetadataDependency
-	for _, version := range newVersions {
-		for _, r := range releases {
-			if r.SemVer.String() == version {
-				dependency, err := components.ConvertReleaseToDependency(r, verifier)
-				if err != nil {
-					log.Fatal(err)
-				}
-				dependencies = append(dependencies, dependency)
-			}
-		}
-	}
-
-	err = components.WriteOutput(outputPath, dependencies, targetMap)
-	if err != nil {
-		log.Fatal(err)
-	}
+	return versions, nil
 }

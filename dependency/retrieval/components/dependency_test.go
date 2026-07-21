@@ -138,7 +138,8 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 						URL:  fmt.Sprintf("%s/source", server.URL),
 					},
 				},
-			}, signatureVerifier)
+			}, cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+			)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(dependency).To(Equal(cargo.ConfigMetadataDependency{
@@ -164,7 +165,7 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 		context("failure cases", func() {
 			context("when there are missing release files", func() {
 				it("returns an error", func() {
-					_, err := components.ConvertReleaseToDependency(components.Release{}, signatureVerifier)
+					_, err := components.ConvertReleaseToDependency(components.Release{}, cargo.ConfigTarget{OS: "linux", Arch: "amd64"})
 					Expect(err).To(MatchError("required files are missing from the release"))
 				})
 			})
@@ -192,7 +193,9 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  "not a valid URL",
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+					)
 					Expect(err).To(MatchError(ContainSubstring("unsupported protocol scheme")))
 				})
 			})
@@ -220,7 +223,9 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  fmt.Sprintf("%s/bad-archive", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+					)
 					Expect(err).To(MatchError(ContainSubstring("unsupported archive type")))
 				})
 			})
@@ -248,7 +253,9 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+					)
 					Expect(err).To(MatchError(ContainSubstring("unsupported protocol scheme")))
 				})
 			})
@@ -276,7 +283,9 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+					)
 					Expect(err).To(MatchError("unable to parse the sha256 file"))
 				})
 			})
@@ -304,7 +313,9 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+					)
 					Expect(err).To(MatchError(ContainSubstring("unsupported protocol scheme")))
 				})
 			})
@@ -332,7 +343,9 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+					)
 					Expect(err).To(MatchError("the given checksum of the artifact does not match with downloaded artifact"))
 				})
 			})
@@ -364,7 +377,9 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+					)
 					Expect(err).To(MatchError("verifier failed"))
 				})
 			})
