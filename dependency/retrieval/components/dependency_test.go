@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/paketo-buildpacks/libdependency/versionology"
 	"github.com/paketo-buildpacks/packit/v2/cargo"
 	"github.com/paketo-buildpacks/tini/dependency/retrieval/components"
 	"github.com/paketo-buildpacks/tini/dependency/retrieval/components/fakes"
@@ -86,14 +87,14 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 					_, err := w.Write(buffer.Bytes())
 					Expect(err).NotTo(HaveOccurred())
 
-				case "/tini-static":
+				case "/tini-static-amd64":
 					w.WriteHeader(http.StatusOK)
 					_, err := w.Write([]byte{0x7F, 0x45, 0x4C, 0x46})
 					Expect(err).NotTo(HaveOccurred())
 
-				case "/tini-static-sha256":
+				case "/tini-static-amd64-sha256":
 					w.WriteHeader(http.StatusOK)
-					fmt.Fprintln(w, `3bdbb4fe8397cd2b842430b39ccff01a8663c751945ef5e9a09e267fb8b1d359  tini-static`)
+					fmt.Fprintln(w, `3bdbb4fe8397cd2b842430b39ccff01a8663c751945ef5e9a09e267fb8b1d359  tini-static-amd64`)
 
 				case "/bad-shasum":
 					w.WriteHeader(http.StatusOK)
@@ -101,7 +102,7 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 
 				case "/wrong-shasum":
 					w.WriteHeader(http.StatusOK)
-					fmt.Fprintln(w, `aaaaaaaaaaaa  tini-static`)
+					fmt.Fprintln(w, `aaaaaaaaaaaa  tini-static-amd64`)
 
 				case "/bad-archive":
 					w.WriteHeader(http.StatusOK)
@@ -122,49 +123,58 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 				Version: "0.19.0",
 				Files: []components.ReleaseFile{
 					{
-						Name: "tini-static",
-						URL:  fmt.Sprintf("%s/tini-static", server.URL),
+						Name: "tini-static-amd64",
+						URL:  fmt.Sprintf("%s/tini-static-amd64", server.URL),
 					},
 					{
-						Name: "tini-static.asc",
-						URL:  fmt.Sprintf("%s/tini-static-asc", server.URL),
+						Name: "tini-static-amd64.asc",
+						URL:  fmt.Sprintf("%s/tini-static-amd64-asc", server.URL),
 					},
 					{
-						Name: "tini-static.sha256sum",
-						URL:  fmt.Sprintf("%s/tini-static-sha256", server.URL),
+						Name: "tini-static-amd64.sha256sum",
+						URL:  fmt.Sprintf("%s/tini-static-amd64-sha256", server.URL),
 					},
 					{
 						Name: "source",
 						URL:  fmt.Sprintf("%s/source", server.URL),
 					},
 				},
-			}, signatureVerifier)
+			}, cargo.ConfigTarget{OS: "linux", Arch: "amd64"}, signatureVerifier)
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(dependency).To(Equal(cargo.ConfigMetadataDependency{
-				Checksum:        "sha256:3bdbb4fe8397cd2b842430b39ccff01a8663c751945ef5e9a09e267fb8b1d359",
-				CPE:             "cpe:2.3:a:tini_project:tini:0.19.0:*:*:*:*:*:*:*",
-				PURL:            fmt.Sprintf("pkg:generic/tini@0.19.0?checksum=ad1b820bde8c32707f8bb8ce636750b1c1b7c83a82e43481910bef2f4f77dcb5&download_url=%s/source", server.URL),
-				ID:              "tini",
-				Licenses:        []interface{}{"MIT", "MIT-0"},
-				Name:            "Tini",
-				SHA256:          "",
-				Source:          fmt.Sprintf("%s/source", server.URL),
-				SourceChecksum:  "sha256:ad1b820bde8c32707f8bb8ce636750b1c1b7c83a82e43481910bef2f4f77dcb5",
-				SourceSHA256:    "",
-				StripComponents: 0,
-				URI:             fmt.Sprintf("%s/tini-static", server.URL),
-				Version:         "0.19.0",
+			Expect(dependency).To(Equal([]versionology.Dependency{
+				{
+					ConfigMetadataDependency: cargo.ConfigMetadataDependency{
+						Arch:            "amd64",
+						Checksum:        "sha256:3bdbb4fe8397cd2b842430b39ccff01a8663c751945ef5e9a09e267fb8b1d359",
+						CPE:             "cpe:2.3:a:tini_project:tini:0.19.0:*:*:*:*:*:*:*",
+						PURL:            fmt.Sprintf("pkg:generic/tini@0.19.0?checksum=ad1b820bde8c32707f8bb8ce636750b1c1b7c83a82e43481910bef2f4f77dcb5&download_url=%s/source", server.URL),
+						ID:              "tini",
+						Licenses:        []interface{}{"JSON", "MIT", "MIT-0", "MIT-feh"},
+						Name:            "Tini",
+						SHA256:          "",
+						Source:          fmt.Sprintf("%s/source", server.URL),
+						SourceChecksum:  "sha256:ad1b820bde8c32707f8bb8ce636750b1c1b7c83a82e43481910bef2f4f77dcb5",
+						SourceSHA256:    "",
+						Stacks:          []string{"*"},
+						OS:              "linux",
+						StripComponents: 0,
+						URI:             fmt.Sprintf("%s/tini-static-amd64", server.URL),
+						Version:         "0.19.0",
+					},
+					SemverVersion: semver.MustParse("0.19.0"),
+					Target:        "*",
+				},
 			}))
 
-			Expect(signatureVerifier.VerifyCall.Receives.SignatureURL).To(Equal(fmt.Sprintf("%s/tini-static-asc", server.URL)))
-			Expect(signatureVerifier.VerifyCall.Receives.TargetURL).To(Equal(fmt.Sprintf("%s/tini-static", server.URL)))
+			Expect(signatureVerifier.VerifyCall.Receives.SignatureURL).To(Equal(fmt.Sprintf("%s/tini-static-amd64-asc", server.URL)))
+			Expect(signatureVerifier.VerifyCall.Receives.TargetURL).To(Equal(fmt.Sprintf("%s/tini-static-amd64", server.URL)))
 		})
 
 		context("failure cases", func() {
 			context("when there are missing release files", func() {
 				it("returns an error", func() {
-					_, err := components.ConvertReleaseToDependency(components.Release{}, signatureVerifier)
+					_, err := components.ConvertReleaseToDependency(components.Release{}, cargo.ConfigTarget{OS: "linux", Arch: "amd64"}, signatureVerifier)
 					Expect(err).To(MatchError("required files are missing from the release"))
 				})
 			})
@@ -176,23 +186,26 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 						Version: "0.19.0",
 						Files: []components.ReleaseFile{
 							{
-								Name: "tini-static",
-								URL:  fmt.Sprintf("%s/tini-static", server.URL),
+								Name: "tini-static-amd64",
+								URL:  fmt.Sprintf("%s/tini-static-amd64", server.URL),
 							},
 							{
-								Name: "tini-static.asc",
-								URL:  fmt.Sprintf("%s/tini-static-asc", server.URL),
+								Name: "tini-static-amd64.asc",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-asc", server.URL),
 							},
 							{
-								Name: "tini-static.sha256sum",
-								URL:  fmt.Sprintf("%s/tini-static-sha256", server.URL),
+								Name: "tini-static-amd64.sha256sum",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-sha256", server.URL),
 							},
 							{
 								Name: "source",
 								URL:  "not a valid URL",
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+						signatureVerifier,
+					)
 					Expect(err).To(MatchError(ContainSubstring("unsupported protocol scheme")))
 				})
 			})
@@ -204,23 +217,26 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 						Version: "0.19.0",
 						Files: []components.ReleaseFile{
 							{
-								Name: "tini-static",
-								URL:  fmt.Sprintf("%s/tini-static", server.URL),
+								Name: "tini-static-amd64",
+								URL:  fmt.Sprintf("%s/tini-static-amd64", server.URL),
 							},
 							{
-								Name: "tini-static.asc",
-								URL:  fmt.Sprintf("%s/tini-static-asc", server.URL),
+								Name: "tini-static-amd64.asc",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-asc", server.URL),
 							},
 							{
-								Name: "tini-static.sha256sum",
-								URL:  fmt.Sprintf("%s/tini-static-sha256", server.URL),
+								Name: "tini-static-amd64.sha256sum",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-sha256", server.URL),
 							},
 							{
 								Name: "source",
 								URL:  fmt.Sprintf("%s/bad-archive", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+						signatureVerifier,
+					)
 					Expect(err).To(MatchError(ContainSubstring("unsupported archive type")))
 				})
 			})
@@ -232,15 +248,15 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 						Version: "0.19.0",
 						Files: []components.ReleaseFile{
 							{
-								Name: "tini-static",
-								URL:  fmt.Sprintf("%s/tini-static", server.URL),
+								Name: "tini-static-amd64",
+								URL:  fmt.Sprintf("%s/tini-static-amd64", server.URL),
 							},
 							{
-								Name: "tini-static.asc",
-								URL:  fmt.Sprintf("%s/tini-static-asc", server.URL),
+								Name: "tini-static-amd64.asc",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-asc", server.URL),
 							},
 							{
-								Name: "tini-static.sha256sum",
+								Name: "tini-static-amd64.sha256sum",
 								URL:  "no a valid URL",
 							},
 							{
@@ -248,7 +264,10 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+						signatureVerifier,
+					)
 					Expect(err).To(MatchError(ContainSubstring("unsupported protocol scheme")))
 				})
 			})
@@ -260,15 +279,15 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 						Version: "0.19.0",
 						Files: []components.ReleaseFile{
 							{
-								Name: "tini-static",
-								URL:  fmt.Sprintf("%s/tini-static", server.URL),
+								Name: "tini-static-amd64",
+								URL:  fmt.Sprintf("%s/tini-static-amd64", server.URL),
 							},
 							{
-								Name: "tini-static.asc",
-								URL:  fmt.Sprintf("%s/tini-static-asc", server.URL),
+								Name: "tini-static-amd64.asc",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-asc", server.URL),
 							},
 							{
-								Name: "tini-static.sha256sum",
+								Name: "tini-static-amd64.sha256sum",
 								URL:  fmt.Sprintf("%s/bad-shasum", server.URL),
 							},
 							{
@@ -276,7 +295,10 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+						signatureVerifier,
+					)
 					Expect(err).To(MatchError("unable to parse the sha256 file"))
 				})
 			})
@@ -288,23 +310,26 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 						Version: "0.19.0",
 						Files: []components.ReleaseFile{
 							{
-								Name: "tini-static",
+								Name: "tini-static-amd64",
 								URL:  "no a valid URL",
 							},
 							{
-								Name: "tini-static.asc",
-								URL:  fmt.Sprintf("%s/tini-static-asc", server.URL),
+								Name: "tini-static-amd64.asc",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-asc", server.URL),
 							},
 							{
-								Name: "tini-static.sha256sum",
-								URL:  fmt.Sprintf("%s/tini-static-sha256", server.URL),
+								Name: "tini-static-amd64.sha256sum",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-sha256", server.URL),
 							},
 							{
 								Name: "source",
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+						signatureVerifier,
+					)
 					Expect(err).To(MatchError(ContainSubstring("unsupported protocol scheme")))
 				})
 			})
@@ -316,15 +341,15 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 						Version: "0.19.0",
 						Files: []components.ReleaseFile{
 							{
-								Name: "tini-static",
-								URL:  fmt.Sprintf("%s/tini-static", server.URL),
+								Name: "tini-static-amd64",
+								URL:  fmt.Sprintf("%s/tini-static-amd64", server.URL),
 							},
 							{
-								Name: "tini-static.asc",
-								URL:  fmt.Sprintf("%s/tini-static-asc", server.URL),
+								Name: "tini-static-amd64.asc",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-asc", server.URL),
 							},
 							{
-								Name: "tini-static.sha256sum",
+								Name: "tini-static-amd64.sha256sum",
 								URL:  fmt.Sprintf("%s/wrong-shasum", server.URL),
 							},
 							{
@@ -332,7 +357,10 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+						signatureVerifier,
+					)
 					Expect(err).To(MatchError("the given checksum of the artifact does not match with downloaded artifact"))
 				})
 			})
@@ -348,23 +376,26 @@ func testDependency(t *testing.T, context spec.G, it spec.S) {
 						Version: "0.19.0",
 						Files: []components.ReleaseFile{
 							{
-								Name: "tini-static",
-								URL:  fmt.Sprintf("%s/tini-static", server.URL),
+								Name: "tini-static-amd64",
+								URL:  fmt.Sprintf("%s/tini-static-amd64", server.URL),
 							},
 							{
-								Name: "tini-static.asc",
-								URL:  fmt.Sprintf("%s/tini-static-asc", server.URL),
+								Name: "tini-static-amd64.asc",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-asc", server.URL),
 							},
 							{
-								Name: "tini-static.sha256sum",
-								URL:  fmt.Sprintf("%s/tini-static-sha256", server.URL),
+								Name: "tini-static-amd64.sha256sum",
+								URL:  fmt.Sprintf("%s/tini-static-amd64-sha256", server.URL),
 							},
 							{
 								Name: "source",
 								URL:  fmt.Sprintf("%s/source", server.URL),
 							},
 						},
-					}, signatureVerifier)
+					},
+						cargo.ConfigTarget{OS: "linux", Arch: "amd64"},
+						signatureVerifier,
+					)
 					Expect(err).To(MatchError("verifier failed"))
 				})
 			})

@@ -9,20 +9,37 @@ api = "0.7"
   sbom-formats = ["application/vnd.cyclonedx+json", "application/spdx+json", "application/vnd.syft+json"]
 
 [metadata]
-  include-files = ["bin/build", "bin/detect", "bin/run", "buildpack.toml"]
-  pre-package = "./scripts/build.sh"
+  include-files = ["buildpack.toml", "linux/amd64/bin/build", "linux/amd64/bin/detect", "linux/amd64/bin/run", "linux/arm64/bin/build", "linux/arm64/bin/detect", "linux/arm64/bin/run"]
+  pre-package = "./scripts/build.sh --target linux/amd64 --target linux/arm64"
 
   [[metadata.dependencies]]
+    arch = "amd64"
     checksum = "sha256:c5b0666b4cb676901f90dfcb37106783c5fe2077b04590973b885950611b30ee"
     cpe = "cpe:2.3:a:tini_project:tini:0.19.0:*:*:*:*:*:*:*"
     id = "tini"
-    licenses = ["MIT", "MIT-0"]
+    licenses = ["JSON", "MIT", "MIT-0", "MIT-feh"]
     name = "Tini"
+    os = "linux"
     purl = "pkg:generic/tini@0.19.0?checksum=1e83f58ef41e7eac8e1d645bf16f3829ee4f3556dd1dd188eb14a09658cc7679&download_url=https://api.github.com/repos/krallin/tini/tarball/v0.19.0"
     source = "https://api.github.com/repos/krallin/tini/tarball/v0.19.0"
     source-checksum = "sha256:1e83f58ef41e7eac8e1d645bf16f3829ee4f3556dd1dd188eb14a09658cc7679"
     stacks = ["*"]
-    uri = "https://github.com/krallin/tini/releases/download/v0.19.0/tini-static"
+    uri = "https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-amd64"
+    version = "0.19.0"
+
+  [[metadata.dependencies]]
+    arch = "arm64"
+    checksum = "sha256:eae1d3aa50c48fb23b8cbdf4e369d0910dfc538566bfd09df89a774aa84a48b9"
+    cpe = "cpe:2.3:a:tini_project:tini:0.19.0:*:*:*:*:*:*:*"
+    id = "tini"
+    licenses = ["JSON", "MIT", "MIT-0", "MIT-feh"]
+    name = "Tini"
+    os = "linux"
+    purl = "pkg:generic/tini@0.19.0?checksum=1e83f58ef41e7eac8e1d645bf16f3829ee4f3556dd1dd188eb14a09658cc7679&download_url=https://api.github.com/repos/krallin/tini/tarball/v0.19.0"
+    source = "https://api.github.com/repos/krallin/tini/tarball/v0.19.0"
+    source-checksum = "sha256:1e83f58ef41e7eac8e1d645bf16f3829ee4f3556dd1dd188eb14a09658cc7679"
+    stacks = ["*"]
+    uri = "https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-arm64"
     version = "0.19.0"
 
   [[metadata.dependency-constraints]]
@@ -32,3 +49,11 @@ api = "0.7"
 
 [[stacks]]
   id = "*"
+
+[[targets]]
+  arch = "amd64"
+  os = "linux"
+
+[[targets]]
+  arch = "arm64"
+  os = "linux"

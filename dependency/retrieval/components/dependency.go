@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/paketo-buildpacks/libdependency/retrieve"
+	"github.com/paketo-buildpacks/libdependency/versionology"
 	"github.com/paketo-buildpacks/packit/v2/cargo"
 )
 
@@ -15,40 +17,40 @@ type SignatureVerifier interface {
 	Verify(signatureURL, targetURL string) error
 }
 
-func ConvertReleaseToDependency(release Release, signatureVerifier SignatureVerifier) (cargo.ConfigMetadataDependency, error) {
+func ConvertReleaseToDependency(release Release, platform cargo.ConfigTarget, signatureVerifier SignatureVerifier) ([]versionology.Dependency, error) {
 	var source, binary, binarySHA256, binaryASC ReleaseFile
 	for _, f := range release.Files {
 		if f.Name == "source" {
 			source = f
 		}
 
-		if f.Name == "tini-static" {
+		if f.Name == fmt.Sprintf("tini-static-%s", platform.Arch) {
 			binary = f
 		}
 
-		if f.Name == "tini-static.sha256sum" {
+		if f.Name == fmt.Sprintf("tini-static-%s.sha256sum", platform.Arch) {
 			binarySHA256 = f
 		}
 
-		if f.Name == "tini-static.asc" {
+		if f.Name == fmt.Sprintf("tini-static-%s.asc", platform.Arch) {
 			binaryASC = f
 		}
 	}
 
 	if (source == ReleaseFile{} || binary == ReleaseFile{} || binarySHA256 == ReleaseFile{} || binaryASC == ReleaseFile{}) {
-		return cargo.ConfigMetadataDependency{}, fmt.Errorf("required files are missing from the release")
+		return nil, fmt.Errorf("required files are missing from the release")
 	}
 
 	// Obtain source sha256
 	sourceResponse, err := http.Get(source.URL)
 	if err != nil {
-		return cargo.ConfigMetadataDependency{}, err
+		return nil, err
 	}
 	defer sourceResponse.Body.Close()
 
 	hasher := sha256.New()
 	if _, err := io.Copy(hasher, sourceResponse.Body); err != nil {
-		return cargo.ConfigMetadataDependency{}, err
+		return nil, err
 	}
 
 	sourceChecksum := fmt.Sprintf("%x", hasher.Sum(nil))
@@ -57,58 +59,91 @@ func ConvertReleaseToDependency(release Release, signatureVerifier SignatureVeri
 
 	licenses, err := GenerateLicenseInformation(source.URL)
 	if err != nil {
-		return cargo.ConfigMetadataDependency{}, err
+		return nil, err
 	}
 
 	shasumResponse, err := http.Get(binarySHA256.URL)
 	if err != nil {
-		return cargo.ConfigMetadataDependency{}, err
+		return nil, err
 	}
 	defer shasumResponse.Body.Close()
 
 	b, err := io.ReadAll(shasumResponse.Body)
 	if err != nil {
-		return cargo.ConfigMetadataDependency{}, err
+		return nil, err
 	}
 
 	split := strings.Split(strings.TrimSpace(string(b)), " ")
 	if len(split) < 2 {
-		return cargo.ConfigMetadataDependency{}, fmt.Errorf("unable to parse the sha256 file")
+		return nil, fmt.Errorf("unable to parse the sha256 file")
 	}
 	checksum := split[0]
 
 	// Validate the artifact
 	response, err := http.Get(binary.URL)
 	if err != nil {
-		return cargo.ConfigMetadataDependency{}, err
+		return nil, err
 	}
 	defer response.Body.Close()
 
 	vr := cargo.NewValidatedReader(response.Body, fmt.Sprintf("sha256:%s", checksum))
 	valid, err := vr.Valid()
 	if err != nil {
-		return cargo.ConfigMetadataDependency{}, err
+		return nil, err
 	}
 
 	if !valid {
-		return cargo.ConfigMetadataDependency{}, fmt.Errorf("the given checksum of the artifact does not match with downloaded artifact")
+		return nil, fmt.Errorf("the given checksum of the artifact does not match with downloaded artifact")
 	}
 
 	err = signatureVerifier.Verify(binaryASC.URL, binary.URL)
 	if err != nil {
-		return cargo.ConfigMetadataDependency{}, err
+		return nil, err
 	}
 
-	return cargo.ConfigMetadataDependency{
+	dep := cargo.ConfigMetadataDependency{
+		Arch:           platform.Arch,
 		Checksum:       fmt.Sprintf("sha256:%s", checksum),
 		ID:             "tini",
 		Name:           "Tini",
 		Version:        release.Version,
 		Source:         source.URL,
 		SourceChecksum: fmt.Sprintf("sha256:%s", sourceChecksum),
+		Stacks:         []string{"*"},
 		CPE:            fmt.Sprintf(`cpe:2.3:a:tini_project:tini:%s:*:*:*:*:*:*:*`, release.Version),
+		OS:             platform.OS,
 		PURL:           purl,
 		Licenses:       licenses,
 		URI:            binary.URL,
-	}, nil
+	}
+
+	allStacksDependency, err := versionology.NewDependency(dep, "*")
+	if err != nil {
+		return nil, fmt.Errorf("could not get create * dependency: %w", err)
+	}
+
+	return []versionology.Dependency{allStacksDependency}, nil
+}
+
+func GenerateMetadataWithPlatform(versionFetcher versionology.VersionFetcher, platform retrieve.Platform) ([]versionology.Dependency, error) {
+	version := versionFetcher.Version().String()
+
+	fetcher := NewFetcher()
+	releases, err := fetcher.Get()
+	if err != nil {
+		return nil, err
+	}
+
+	var allStacksDependency versionology.Dependency
+	for _, release := range releases {
+		if release.Version == version {
+			return ConvertReleaseToDependency(release, cargo.ConfigTarget{
+				OS:   platform.OS,
+				Arch: platform.Arch,
+			}, NewVerifier())
+		}
+	}
+
+	return []versionology.Dependency{allStacksDependency}, nil
+
 }
