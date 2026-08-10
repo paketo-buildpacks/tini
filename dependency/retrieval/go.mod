@@ -1,6 +1,6 @@
 module github.com/paketo-buildpacks/tini/dependency/retrieval
 
-go 1.20
+go 1.26.5
 
 require (
 	github.com/Masterminds/semver v1.5.0
