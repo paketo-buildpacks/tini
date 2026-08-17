@@ -1,6 +1,6 @@
 module github.com/paketo-buildpacks/tini
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/BurntSushi/toml v1.4.0
