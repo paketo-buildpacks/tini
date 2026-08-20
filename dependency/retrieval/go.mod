@@ -82,7 +82,7 @@ require (
 	github.com/shogo82148/go-shuffle v1.1.1 // indirect
 	github.com/sirupsen/logrus v1.10.0 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
-	github.com/stretchr/testify v1.12.0 // indirect
+	github.com/stretchr/testify v1.12.1 // indirect
 	github.com/testcontainers/testcontainers-go v0.44.0 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect
@@ -102,5 +102,4 @@ require (
 	gonum.org/v1/gonum v0.17.0 // indirect
 	gopkg.in/neurosnap/sentences.v1 v1.0.7 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
