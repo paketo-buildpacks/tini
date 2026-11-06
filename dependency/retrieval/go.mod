@@ -10,7 +10,7 @@ require (
 	github.com/package-url/packageurl-go v0.1.7
 	github.com/paketo-buildpacks/libdependency v0.2.1
 	github.com/paketo-buildpacks/occam v0.31.4
-	github.com/paketo-buildpacks/packit/v2 v2.25.8
+	github.com/paketo-buildpacks/packit/v2 v2.26.0
 	github.com/sclevine/spec v1.4.0
 	golang.org/x/crypto v0.58.0
 )
